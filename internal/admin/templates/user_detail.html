@@ -1,0 +1,114 @@
+{{define "content"}}
+{{with .Content}}
+<h3>User: {{.TargetUser.Username}}</h3>
+
+<article>
+    <header><strong>User Details</strong></header>
+    <dl class="detail-grid">
+        <dt>ID</dt>
+        <dd><code>{{uuidStr .TargetUser.ID}}</code></dd>
+        <dt>Username</dt>
+        <dd>{{.TargetUser.Username}}</dd>
+        <dt>Email</dt>
+        <dd>{{.TargetUser.Email}}</dd>
+        <dt>Instance Admin</dt>
+        <dd>{{if .TargetUser.IsInstanceAdmin}}<span class="badge badge-blue">Yes</span>{{else}}No{{end}}</dd>
+        <dt>Email Verified</dt>
+        <dd>{{if .TargetUser.EmailVerified}}<span class="badge badge-green">Yes</span>{{else}}<span class="badge badge-yellow">No</span>{{end}}</dd>
+        <dt>Presence</dt>
+        <dd>{{.TargetUser.Presence}}</dd>
+        <dt>Status</dt>
+        <dd>
+            {{if isValid .TargetUser.DeletedAt}}<span class="badge badge-red">Deleted</span> ({{formatTime .TargetUser.DeletedAt}})
+            {{else if isValid .TargetUser.DisabledAt}}<span class="badge badge-red">Disabled</span> ({{formatTime .TargetUser.DisabledAt}})
+            {{else}}<span class="badge badge-green">Active</span>
+            {{end}}
+        </dd>
+        <dt>Created</dt>
+        <dd>{{formatTime .TargetUser.CreatedAt}}</dd>
+        <dt>Last Seen</dt>
+        <dd>{{timeAgo .TargetUser.LastSeenAt}}</dd>
+    </dl>
+
+    <div class="actions">
+        {{if isValid .TargetUser.DisabledAt}}
+        <form method="POST" action="/users/{{uuidStr .TargetUser.ID}}/enable">
+            {{csrfField $.CSRFToken}}
+            <button type="submit" class="outline">Enable User</button>
+        </form>
+        {{else if not (isValid .TargetUser.DeletedAt)}}
+        <form method="POST" action="/users/{{uuidStr .TargetUser.ID}}/disable" onsubmit="return confirm('Disable this user? They will be logged out immediately.')">
+            {{csrfField $.CSRFToken}}
+            <button type="submit" class="outline secondary">Disable User</button>
+        </form>
+        {{end}}
+        <form method="POST" action="/users/{{uuidStr .TargetUser.ID}}/revoke-sessions" onsubmit="return confirm('Revoke all sessions for this user?')">
+            {{csrfField $.CSRFToken}}
+            <button type="submit" class="outline secondary">Revoke All Sessions</button>
+        </form>
+        <form method="POST" action="/users/{{uuidStr .TargetUser.ID}}/reset-password">
+            {{csrfField $.CSRFToken}}
+            <button type="submit" class="outline secondary">Reset Password</button>
+        </form>
+    </div>
+</article>
+
+<article>
+    <header><strong>Spaces ({{len .Spaces}})</strong></header>
+    {{if .Spaces}}
+    <figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Spaces}}
+            <tr>
+                <td><a href="/spaces/{{uuidStr .ID}}">{{.Name}}</a></td>
+                <td><span class="badge badge-gray">{{.Role}}</span></td>
+                <td>{{formatTimeShort .JoinedAt}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    </figure>
+    {{else}}
+    <p>This user is not a member of any spaces.</p>
+    {{end}}
+</article>
+
+<article>
+    <header><strong>Active Sessions ({{len .Sessions}})</strong></header>
+    {{if .Sessions}}
+    <figure>
+    <table>
+        <thead>
+            <tr>
+                <th>User Agent</th>
+                <th>IP Address</th>
+                <th>Last Used</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Sessions}}
+            <tr>
+                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{textValue .UserAgent}}</td>
+                <td>{{if .IpAddress}}{{.IpAddress}}{{else}}N/A{{end}}</td>
+                <td>{{timeAgo .LastUsedAt}}</td>
+                <td>{{formatTimeShort .CreatedAt}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    </figure>
+    {{else}}
+    <p>No active sessions.</p>
+    {{end}}
+</article>
+{{end}}
+{{end}}

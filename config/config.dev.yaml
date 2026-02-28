@@ -1,0 +1,109 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 30s
+
+database:
+  host: "postgres"
+  port: 5432
+  name: "redoubt"
+  user: "redoubt"
+  password: "devpassword"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+redis:
+  host: "redis"
+  port: 6379
+  password: ""
+  db: 0
+
+auth:
+  jwt_secret: "dev-jwt-secret-change-in-production"
+  jwt_expiry: 15m
+  refresh_expiry: 720h
+  password_min_length: 12
+  lockout_threshold: 5
+  lockout_duration: 15m
+
+email:
+  provider: "resend"
+  api_key: ""
+  from_address: "noreply@localhost"
+  from_name: "Redoubt Dev"
+  verification_expiry: 24h
+  reset_expiry: 1h
+
+storage:
+  endpoint: "http://localstack:4566"
+  bucket: "redoubt-media"
+  region: "us-east-1"
+  access_key: "test"
+  secret_key: "test"
+  encryption:
+    master_key: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+
+cors:
+  allowed_origins:
+    - "http://localhost:3000"
+    - "http://localhost:5173"
+    - "http://10.0.1.178:5173"
+    - "tauri://localhost"
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+  allowed_headers:
+    - Authorization
+    - Content-Type
+    - X-Request-ID
+  max_age: 86400
+
+logging:
+  level: "debug"
+  format: "text"
+
+telemetry:
+  service_name: "redoubt-api"
+  service_version: "0.1.0-dev"
+  tracing:
+    enabled: true
+    sample_rate: 1.0
+  metrics:
+    enabled: true
+    port: 9090
+
+livekit:
+  host: "http://livekit:7880"
+  api_key: "devkey"
+  api_secret: "secret_dev_key_change_in_production"
+  ws_url: "ws://localhost:7880"
+  webhook_path: "/api/v1/livekit/webhook"
+
+websocket:
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  ping_interval: 30s
+  pong_timeout: 60s
+  max_message_size: 4096
+
+presence:
+  typing_timeout: 5s
+  idle_timeout: 5m
+
+voice:
+  default_max_participants: 25
+
+messages:
+  edit_window: 15m
+
+admin:
+  enabled: true
+  port: 9091
+  session_secret: "dev-admin-secret-change-in-production"
+  session_expiry: 24h

@@ -1,0 +1,77 @@
+// Enable live debugging
+livedebugging {
+  enabled = true
+}
+
+// Docker service discovery
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Relabel discovered containers
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+}
+
+// Filter to only scrape containers that expose metrics
+discovery.relabel "metrics_containers" {
+  targets = discovery.relabel.containers.output
+  // Drop services that don't expose Prometheus metrics
+  rule {
+    source_labels = ["service_name"]
+    regex         = "redis|mailpit|postgres|localstack|lgtm|alloy"
+    action        = "drop"
+  }
+}
+
+// Prometheus metrics scraping (only containers that expose metrics)
+prometheus.scrape "containers" {
+  targets    = discovery.relabel.metrics_containers.output
+  forward_to = [prometheus.remote_write.lgtm.receiver]
+}
+
+prometheus.remote_write "lgtm" {
+  endpoint {
+    url = "http://lgtm:9090/api/v1/write"
+  }
+}
+
+// Loki log collection
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.lgtm.receiver]
+}
+
+loki.write "lgtm" {
+  endpoint {
+    url = "http://lgtm:3100/loki/api/v1/push"
+  }
+}
+
+// OTLP trace receiver (for Zipkin compatibility)
+otelcol.receiver.zipkin "default" {
+  endpoint = "0.0.0.0:9411"
+  output {
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.lgtm.input]
+  }
+}
+
+otelcol.exporter.otlp "lgtm" {
+  client {
+    endpoint = "lgtm:4317"
+    tls {
+      insecure = true
+    }
+  }
+}

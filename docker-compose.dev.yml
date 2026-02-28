@@ -1,0 +1,80 @@
+services:
+  redoubt-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+    environment:
+      - CONFIG_PATH=/app/config/config.dev.yaml
+      - LOG_LEVEL=debug
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4317
+    ports:
+      - "8080:8080"
+      - "9091:9091"
+
+  postgres:
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: devpassword
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  localstack:
+    image: localstack/localstack
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+    ports:
+      - "4566:4566"
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  lgtm:
+    image: grafana/otel-lgtm
+    ports:
+      - "3000:3000"
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./docker/grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/grafana-dashboards.yaml
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+
+  alloy:
+    image: grafana/alloy:v1.4.2
+    command:
+      - run
+      - --server.http.listen-addr
+      - 0.0.0.0:12345
+      - /config.alloy
+      - --stability.level=experimental
+    volumes:
+      - ./docker/alloy/config.alloy:/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "12345:12345"
+      - "9411:9411"
+
+  livekit:
+    environment:
+      - "LIVEKIT_KEYS=devkey: secret_dev_key_change_in_production"
+    ports:
+      - "7880:7880" # HTTP/WebSocket signaling (exposed for dev)
+
+volumes:
+  go_mod_cache:
+  localstack_data:

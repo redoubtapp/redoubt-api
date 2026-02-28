@@ -1,0 +1,2354 @@
+openapi: 3.1.0
+info:
+  title: Redoubt API
+  description: |
+    Redoubt is a secure, invite-only communication platform API.
+
+    All error responses conform to RFC 9457 Problem Details for HTTP APIs.
+    All timestamps are in ISO 8601 UTC format.
+    All IDs are UUID v4.
+  version: 0.1.0
+  contact:
+    name: Redoubt
+  license:
+    name: MIT
+
+servers:
+  - url: https://api.example.com/api/v1
+    description: Production server
+  - url: http://localhost:8080/api/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User registration, login, and token management
+  - name: Users
+    description: User profile and avatar management
+  - name: Sessions
+    description: Session management
+  - name: Spaces
+    description: Space (community) management
+  - name: Channels
+    description: Channel management within spaces
+  - name: Messages
+    description: Message CRUD, threading, and read state
+  - name: Reactions
+    description: Message reactions
+  - name: Emoji
+    description: Curated emoji set
+  - name: Invites
+    description: Invite code management
+  - name: Health
+    description: Health check endpoints
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token
+
+  schemas:
+    # Common schemas
+    UUID:
+      type: string
+      format: uuid
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    Timestamp:
+      type: string
+      format: date-time
+      example: "2026-02-22T10:30:00Z"
+
+    # Error schemas (RFC 9457)
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference identifying the problem type
+          example: "https://redoubt.app/problems/validation-error"
+        title:
+          type: string
+          description: Short, human-readable summary
+          example: "Validation Failed"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Human-readable explanation
+          example: "The request body contains invalid fields"
+        instance:
+          type: string
+          description: URI reference for this occurrence
+          example: "/api/v1/auth/register"
+        request_id:
+          type: string
+          description: X-Request-ID for tracing
+          example: "abc-123-def"
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      required:
+        - field
+        - message
+      properties:
+        field:
+          type: string
+          example: "username"
+        message:
+          type: string
+          example: "must be between 3 and 32 characters"
+
+    # Auth schemas
+    RegisterRequest:
+      type: object
+      required:
+        - username
+        - email
+        - password
+        - invite_code
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[a-zA-Z0-9_]+$"
+          example: "alice"
+        email:
+          type: string
+          format: email
+          example: "alice@example.com"
+        password:
+          type: string
+          minLength: 12
+          example: "correct-horse-battery-staple"
+        invite_code:
+          type: string
+          example: "alpha-bravo-charlie-delta"
+
+    RegisterResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Registration successful. Please check your email to verify your account."
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "alice@example.com"
+        password:
+          type: string
+          example: "correct-horse-battery-staple"
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        refresh_token:
+          type: string
+          example: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+        expires_in:
+          type: integer
+          description: Access token expiry in seconds
+          example: 900
+        user:
+          $ref: '#/components/schemas/User'
+
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          example: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+
+    LogoutRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+
+    VerifyEmailRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - new_password
+      properties:
+        token:
+          type: string
+        new_password:
+          type: string
+          minLength: 12
+
+    ResendVerificationRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    # User schemas
+    User:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        username:
+          type: string
+          example: "alice"
+        email:
+          type: string
+          format: email
+          example: "alice@example.com"
+        avatar_url:
+          type: string
+          nullable: true
+          example: null
+        is_instance_admin:
+          type: boolean
+          example: true
+        email_verified:
+          type: boolean
+          example: true
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: "^[a-zA-Z0-9_]+$"
+
+    # Session schemas
+    Session:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        user_agent:
+          type: string
+          nullable: true
+        ip_address:
+          type: string
+          nullable: true
+        last_used_at:
+          $ref: '#/components/schemas/Timestamp'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        current:
+          type: boolean
+          description: Whether this is the current session
+
+    SessionsListResponse:
+      type: object
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Session'
+
+    RevokeAllSessionsRequest:
+      type: object
+      properties:
+        exclude_current:
+          type: boolean
+          default: false
+          description: If true, keep the current session active
+
+    # Space schemas
+    Space:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          example: "My Community"
+        icon_url:
+          type: string
+          nullable: true
+        owner_id:
+          $ref: '#/components/schemas/UUID'
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SpaceWithChannels:
+      allOf:
+        - $ref: '#/components/schemas/Space'
+        - type: object
+          properties:
+            channels:
+              type: array
+              items:
+                $ref: '#/components/schemas/Channel'
+
+    CreateSpaceRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9 ]+$"
+          example: "My Community"
+
+    UpdateSpaceRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9 ]+$"
+
+    SpacesListResponse:
+      type: object
+      properties:
+        spaces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Space'
+
+    # Member schemas
+    Member:
+      type: object
+      properties:
+        user_id:
+          $ref: '#/components/schemas/UUID'
+        username:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [owner, admin, member]
+        joined_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    MembersListResponse:
+      type: object
+      properties:
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+
+    ChangeMemberRoleRequest:
+      type: object
+      required:
+        - role
+      properties:
+        role:
+          type: string
+          enum: [admin, member]
+
+    # Channel schemas
+    Channel:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        space_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          example: "general"
+        type:
+          type: string
+          enum: [text, voice]
+        position:
+          type: integer
+          example: 0
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+        updated_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    CreateChannelRequest:
+      type: object
+      required:
+        - name
+        - type
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9 ]+$"
+          example: "general"
+        type:
+          type: string
+          enum: [text, voice]
+        position:
+          type: integer
+          description: Position in channel list (auto-assigned if not specified)
+
+    UpdateChannelRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9 ]+$"
+
+    ReorderChannelsRequest:
+      type: object
+      required:
+        - channel_ids
+      properties:
+        channel_ids:
+          type: array
+          items:
+            $ref: '#/components/schemas/UUID'
+          description: Channel IDs in desired order
+
+    ChannelsListResponse:
+      type: object
+      properties:
+        channels:
+          type: array
+          items:
+            $ref: '#/components/schemas/Channel'
+
+    # Message schemas
+    MessageAuthor:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        username:
+          type: string
+          example: "alice"
+        avatar_url:
+          type: string
+          nullable: true
+
+    Message:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        channel_id:
+          $ref: '#/components/schemas/UUID'
+        author:
+          $ref: '#/components/schemas/MessageAuthor'
+        content:
+          type: string
+          example: "Hello **world**!"
+        thread_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent message ID if this is a thread reply
+        is_thread_root:
+          type: boolean
+          description: Whether this message has replies
+        reply_count:
+          type: integer
+          description: Number of replies if this is a thread root
+        edited_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    SendMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          example: "Hello **world**!"
+        thread_id:
+          type: string
+          format: uuid
+          description: Parent message ID to reply to thread
+        nonce:
+          type: string
+          maxLength: 64
+          description: Client-generated ID for optimistic updates
+
+    EditMessageRequest:
+      type: object
+      required:
+        - content
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 2000
+
+    MessageEditResponse:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        content:
+          type: string
+        channel_id:
+          $ref: '#/components/schemas/UUID'
+        edited_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    MessageEdit:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        previous_content:
+          type: string
+        edited_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    MessageEditHistory:
+      type: object
+      properties:
+        edits:
+          type: array
+          items:
+            $ref: '#/components/schemas/MessageEdit'
+
+    MessagesListResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        next_cursor:
+          type: string
+          description: Cursor for pagination
+        has_more:
+          type: boolean
+
+    ThreadRepliesResponse:
+      type: object
+      properties:
+        replies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    MarkAsReadRequest:
+      type: object
+      properties:
+        message_id:
+          type: string
+          format: uuid
+          description: Mark as read up to this message (optional, marks all if not specified)
+
+    UnreadCountResponse:
+      type: object
+      properties:
+        unread_count:
+          type: integer
+          example: 12
+
+    # Reaction schemas
+    ReactionGroup:
+      type: object
+      properties:
+        emoji:
+          type: string
+          example: "👍"
+        count:
+          type: integer
+          example: 3
+        users:
+          type: array
+          items:
+            type: string
+          description: Usernames of users who reacted
+        has_reacted:
+          type: boolean
+          description: Whether the current user has this reaction
+
+    ReactionsListResponse:
+      type: object
+      properties:
+        reactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReactionGroup'
+
+    AddReactionRequest:
+      type: object
+      required:
+        - emoji
+      properties:
+        emoji:
+          type: string
+          minLength: 1
+          maxLength: 32
+          example: "👍"
+
+    ToggleReactionResponse:
+      type: object
+      properties:
+        added:
+          type: boolean
+          description: Whether the reaction was added (true) or removed (false)
+
+    # Emoji schemas
+    Emoji:
+      type: object
+      properties:
+        emoji:
+          type: string
+          example: "👍"
+        name:
+          type: string
+          example: "thumbsup"
+        category:
+          type: string
+          example: "gestures"
+
+    EmojiListResponse:
+      type: object
+      properties:
+        emoji:
+          type: array
+          items:
+            $ref: '#/components/schemas/Emoji'
+
+    # Invite schemas
+    Invite:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        code:
+          type: string
+          example: "alpha-bravo-charlie-delta"
+        space_id:
+          $ref: '#/components/schemas/UUID'
+        created_by:
+          $ref: '#/components/schemas/UUID'
+        uses:
+          type: integer
+          example: 5
+        max_uses:
+          type: integer
+          nullable: true
+          description: null means unlimited
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: null means never expires
+        created_at:
+          $ref: '#/components/schemas/Timestamp'
+
+    InviteInfo:
+      type: object
+      properties:
+        code:
+          type: string
+        space_name:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateInviteRequest:
+      type: object
+      properties:
+        max_uses:
+          type: integer
+          nullable: true
+          description: Maximum number of uses (null for unlimited)
+        expires_in_hours:
+          type: integer
+          nullable: true
+          description: Hours until expiry (null for never)
+
+    InvitesListResponse:
+      type: object
+      properties:
+        invites:
+          type: array
+          items:
+            $ref: '#/components/schemas/Invite'
+
+    # Health schemas
+    ComponentStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        latency_ms:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        version:
+          type: string
+          example: "0.1.0"
+        components:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/ComponentStatus'
+
+    SimpleStatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "ok"
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        RateLimit-Limit:
+          schema:
+            type: integer
+          description: Maximum requests allowed in window
+        RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Requests remaining in current window
+        RateLimit-Reset:
+          schema:
+            type: integer
+          description: Seconds until the window resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+paths:
+  # Authentication endpoints
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      description: Register with an invite code. Email verification required before login.
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Login
+      description: Authenticate and receive access and refresh tokens.
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Email not verified or account locked
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: Exchange a valid refresh token for a new access token.
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout
+      description: Invalidate the refresh token.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /auth/verify-email:
+    post:
+      tags: [Authentication]
+      summary: Verify email
+      description: Verify email address with the token sent via email.
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/forgot-password:
+    post:
+      tags: [Authentication]
+      summary: Request password reset
+      description: Request a password reset email. Always returns success to not reveal if email exists.
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Reset email sent if account exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /auth/reset-password:
+    post:
+      tags: [Authentication]
+      summary: Reset password
+      description: Reset password using the token from the reset email.
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /auth/resend-verification:
+    post:
+      tags: [Authentication]
+      summary: Resend verification email
+      description: Resend the email verification link. Always returns success to not reveal if email exists.
+      operationId: resendVerification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+      responses:
+        '200':
+          description: Verification email sent if applicable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  # User endpoints
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user
+      description: Get the authenticated user's profile.
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    patch:
+      tags: [Users]
+      summary: Update current user
+      description: Update the authenticated user's profile.
+      operationId: updateCurrentUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Users]
+      summary: Delete current user
+      description: Soft delete the authenticated user's account.
+      operationId: deleteCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Account deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/avatar:
+    put:
+      tags: [Users]
+      summary: Upload avatar
+      description: Upload or replace the user's avatar image.
+      operationId: uploadAvatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Image file (PNG, JPEG, WebP, GIF, max 5MB)
+      responses:
+        '200':
+          description: Avatar uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Users]
+      summary: Delete avatar
+      description: Remove the user's avatar.
+      operationId: deleteAvatar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Avatar deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/{id}/avatar:
+    get:
+      tags: [Users]
+      summary: Get user avatar
+      description: Get a user's avatar image.
+      operationId: getAvatar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Avatar image
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            image/gif:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Session endpoints
+  /sessions:
+    get:
+      tags: [Sessions]
+      summary: List sessions
+      description: List all active sessions for the current user.
+      operationId: listSessions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Sessions]
+      summary: Revoke all sessions
+      description: Revoke all sessions for the current user.
+      operationId: revokeAllSessions
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeAllSessionsRequest'
+      responses:
+        '200':
+          description: Sessions revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /sessions/{id}:
+    delete:
+      tags: [Sessions]
+      summary: Revoke session
+      description: Revoke a specific session.
+      operationId: revokeSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Session revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Space endpoints
+  /spaces:
+    get:
+      tags: [Spaces]
+      summary: List spaces
+      description: List all spaces the user is a member of.
+      operationId: listSpaces
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of spaces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpacesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Spaces]
+      summary: Create space
+      description: Create a new space. Requires instance admin role.
+      operationId: createSpace
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSpaceRequest'
+      responses:
+        '201':
+          description: Space created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceWithChannels'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /spaces/{id}:
+    get:
+      tags: [Spaces]
+      summary: Get space
+      description: Get space details. Requires space membership.
+      operationId: getSpace
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Space details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceWithChannels'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Spaces]
+      summary: Update space
+      description: Update space details. Requires admin role.
+      operationId: updateSpace
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSpaceRequest'
+      responses:
+        '200':
+          description: Space updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Spaces]
+      summary: Delete space
+      description: Soft delete a space. Requires owner role.
+      operationId: deleteSpace
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Space deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /spaces/{id}/members:
+    get:
+      tags: [Spaces]
+      summary: List members
+      description: List all members of a space. Requires space membership.
+      operationId: listMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: List of members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MembersListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /spaces/{id}/members/{userId}:
+    delete:
+      tags: [Spaces]
+      summary: Kick member
+      description: Remove a member from the space. Requires admin role.
+      operationId: kickMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Spaces]
+      summary: Change member role
+      description: Change a member's role. Requires owner role.
+      operationId: changeMemberRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+        - name: userId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeMemberRoleRequest'
+      responses:
+        '200':
+          description: Role changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Member'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Channel endpoints
+  /spaces/{id}/channels:
+    get:
+      tags: [Channels]
+      summary: List channels
+      description: List all channels in a space. Requires space membership.
+      operationId: listChannels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: List of channels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Channels]
+      summary: Create channel
+      description: Create a new channel in a space. Requires admin role.
+      operationId: createChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChannelRequest'
+      responses:
+        '201':
+          description: Channel created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /spaces/{id}/channels/reorder:
+    patch:
+      tags: [Channels]
+      summary: Reorder channels
+      description: Reorder channels in a space. Requires admin role.
+      operationId: reorderChannels
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderChannelsRequest'
+      responses:
+        '200':
+          description: Channels reordered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelsListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /channels/{id}:
+    get:
+      tags: [Channels]
+      summary: Get channel
+      description: Get channel details. Requires space membership.
+      operationId: getChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Channel details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Channels]
+      summary: Update channel
+      description: Update channel details. Requires admin role.
+      operationId: updateChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChannelRequest'
+      responses:
+        '200':
+          description: Channel updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Channel'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Channels]
+      summary: Delete channel
+      description: Soft delete a channel. Requires admin role.
+      operationId: deleteChannel
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Channel deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Message endpoints (nested under channels)
+  /channels/{id}/messages:
+    get:
+      tags: [Messages]
+      summary: List channel messages
+      description: List messages in a channel with cursor-based pagination. Returns newest messages first.
+      operationId: listMessages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Channel ID
+        - name: cursor
+          in: query
+          schema:
+            type: string
+          description: Pagination cursor from previous response
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 50
+          description: Number of messages to return
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Messages]
+      summary: Send message
+      description: Send a message to a channel. Supports markdown formatting. Rate limited to 5 messages per 5 seconds.
+      operationId: sendMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Channel ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /channels/{id}/read:
+    put:
+      tags: [Messages]
+      summary: Mark channel as read
+      description: Mark a channel as read up to a specific message or all messages.
+      operationId: markChannelAsRead
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Channel ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarkAsReadRequest'
+      responses:
+        '200':
+          description: Channel marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /channels/{id}/unread:
+    get:
+      tags: [Messages]
+      summary: Get unread count
+      description: Get the number of unread messages in a channel.
+      operationId: getUnreadCount
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Channel ID
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnreadCountResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Message endpoints (direct access)
+  /messages/{id}:
+    get:
+      tags: [Messages]
+      summary: Get message
+      description: Get a single message by ID.
+      operationId: getMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      responses:
+        '200':
+          description: Message details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Messages]
+      summary: Edit message
+      description: Edit a message. Only the author can edit within 15 minutes of creation. Rate limited to 3 edits per minute.
+      operationId: editMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EditMessageRequest'
+      responses:
+        '200':
+          description: Message edited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEditResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    delete:
+      tags: [Messages]
+      summary: Delete message
+      description: Soft delete a message. Authors can delete their own messages anytime. Admins can delete any message in their space.
+      operationId: deleteMessage
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      responses:
+        '204':
+          description: Message deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /messages/{id}/edits:
+    get:
+      tags: [Messages]
+      summary: Get edit history
+      description: Get the edit history for a message. Only available to the author or space admins.
+      operationId: getEditHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      responses:
+        '200':
+          description: Edit history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEditHistory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /messages/{id}/thread:
+    get:
+      tags: [Messages]
+      summary: Get thread replies
+      description: Get all replies to a message thread.
+      operationId: getThreadReplies
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Parent message ID
+      responses:
+        '200':
+          description: Thread replies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ThreadRepliesResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Messages]
+      summary: Reply to thread
+      description: Create a reply to a message thread. If the parent message is not already a thread root, it will become one.
+      operationId: replyToThread
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Parent message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendMessageRequest'
+      responses:
+        '201':
+          description: Reply created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # Reaction endpoints
+  /messages/{id}/reactions:
+    get:
+      tags: [Reactions]
+      summary: Get message reactions
+      description: Get all reactions for a message, grouped by emoji.
+      operationId: getMessageReactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      responses:
+        '200':
+          description: Message reactions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReactionsListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Reactions]
+      summary: Add reaction
+      description: Add a reaction to a message. Emoji must be from the curated set. Rate limited to 20 reactions per minute.
+      operationId: addReaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddReactionRequest'
+      responses:
+        '201':
+          description: Reaction added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /messages/{id}/reactions/toggle:
+    post:
+      tags: [Reactions]
+      summary: Toggle reaction
+      description: Add a reaction if it doesn't exist, or remove it if it does.
+      operationId: toggleReaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddReactionRequest'
+      responses:
+        '200':
+          description: Reaction toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToggleReactionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /messages/{id}/reactions/{emoji}:
+    delete:
+      tags: [Reactions]
+      summary: Remove reaction
+      description: Remove your reaction from a message.
+      operationId: removeReaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+          description: Message ID
+        - name: emoji
+          in: path
+          required: true
+          schema:
+            type: string
+          description: The emoji to remove (URL-encoded)
+      responses:
+        '204':
+          description: Reaction removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Emoji endpoints
+  /emoji:
+    get:
+      tags: [Emoji]
+      summary: List curated emoji
+      description: Get the curated emoji set for reactions. Grouped by category.
+      operationId: listEmoji
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Emoji list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmojiListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Invite endpoints
+  /spaces/{id}/invites:
+    get:
+      tags: [Invites]
+      summary: List invites
+      description: List all invites for a space. Requires admin role.
+      operationId: listInvites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: List of invites
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Invites]
+      summary: Create invite
+      description: Create a new invite code for a space. Requires admin role.
+      operationId: createInvite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInviteRequest'
+      responses:
+        '201':
+          description: Invite created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invite'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invites/{code}:
+    get:
+      tags: [Invites]
+      summary: Get invite info
+      description: Get public information about an invite code. No authentication required.
+      operationId: getInviteInfo
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invite information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteInfo'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invites/{id}:
+    delete:
+      tags: [Invites]
+      summary: Revoke invite
+      description: Revoke an invite code. Requires admin role.
+      operationId: revokeInvite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Invite revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invites/{code}/join:
+    post:
+      tags: [Invites]
+      summary: Join via invite
+      description: Join a space using an invite code.
+      operationId: joinViaInvite
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Joined space
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Health endpoints
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Detailed health check with component status.
+      operationId: health
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      description: Simple check that the process is running.
+      operationId: liveness
+      responses:
+        '200':
+          description: Process is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleStatusResponse'
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      description: Check if the service is ready to accept traffic.
+      operationId: readiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleStatusResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "not ready"
+                  reason:
+                    type: string
+                    example: "database unavailable"

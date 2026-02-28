@@ -1,0 +1,129 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 30s
+  shutdown_timeout: 30s
+
+database:
+  host: "postgres"
+  port: 5432
+  name: "redoubt"
+  user: "redoubt"
+  password: "${POSTGRES_PASSWORD}"
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+
+redis:
+  host: "redis"
+  port: 6379
+  password: ""
+  db: 0
+
+auth:
+  jwt_secret: "${JWT_SECRET}"
+  jwt_expiry: 15m
+  refresh_expiry: 720h  # 30 days
+  password_min_length: 12
+  lockout_threshold: 5
+  lockout_duration: 15m
+
+email:
+  provider: "resend"
+  api_key: "${RESEND_API_KEY}"
+  from_address: "noreply@example.com"
+  from_name: "Redoubt"
+  verification_expiry: 24h
+  reset_expiry: 1h
+
+storage:
+  endpoint: "http://localstack:4566"
+  bucket: "redoubt-media"
+  region: "us-east-1"
+  access_key: "${S3_ACCESS_KEY}"
+  secret_key: "${S3_SECRET_KEY}"
+  encryption:
+    master_key: "${STORAGE_MASTER_KEY}"
+
+cors:
+  allowed_origins:
+    - "https://app.example.com"
+  allowed_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+  allowed_headers:
+    - Authorization
+    - Content-Type
+    - X-Request-ID
+  max_age: 86400
+
+logging:
+  level: "info"
+  format: "json"
+
+telemetry:
+  service_name: "redoubt-api"
+  service_version: "${VERSION:-0.1.0}"
+  tracing:
+    enabled: true
+    sample_rate: 0.1
+    otlp_endpoint: "lgtm:4317"
+  metrics:
+    enabled: true
+    port: 9090
+
+livekit:
+  host: "http://livekit:7880"
+  api_key: "${LIVEKIT_API_KEY}"
+  api_secret: "${LIVEKIT_API_SECRET}"
+  ws_url: "wss://${DOMAIN}/livekit"
+  webhook_path: "/api/v1/livekit/webhook"
+
+websocket:
+  read_buffer_size: 1024
+  write_buffer_size: 1024
+  ping_interval: 30s
+  pong_timeout: 60s
+  max_message_size: 4096
+
+presence:
+  typing_timeout: 5s
+  idle_timeout: 5m
+
+voice:
+  default_max_participants: 25
+
+messages:
+  edit_window: 15m
+
+admin:
+  enabled: true
+  port: 9091
+  session_secret: "${ADMIN_SESSION_SECRET}"
+  session_expiry: 24h
+
+ratelimit:
+  enabled: true
+  rules:
+    register:
+      limit: 5
+      window: 1h
+    login:
+      limit: 10
+      window: 15m
+    forgot_password:
+      limit: 3
+      window: 1h
+    verify_email:
+      limit: 10
+      window: 1h
+    general:
+      limit: 100
+      window: 1m
+    file_upload:
+      limit: 10
+      window: 1h

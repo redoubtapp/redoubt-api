@@ -1,0 +1,46 @@
+# LiveKit Server Configuration
+# https://docs.livekit.io/home/self-hosting/deployment/#config
+
+port: 7880
+
+rtc:
+  # UDP port range for WebRTC media
+  port_range_start: 60000
+  port_range_end: 60100
+  # TCP fallback for restrictive firewalls
+  tcp_port: 7881
+  # Use external IP for NAT traversal (disable for local dev)
+  use_external_ip: false
+  # For local development: advertise localhost so browser can connect
+  node_ip: 127.0.0.1
+
+turn:
+  # TURN requires a domain for TLS. Disable for local development.
+  # For production, enable TURN with proper domain configuration.
+  enabled: false
+  # udp_port: 7882
+  # tls_port: 7882
+  # domain: your-domain.com
+
+redis:
+  address: redis:6379
+
+# API keys are loaded from LIVEKIT_KEYS environment variable
+# Format: key:secret (e.g., LIVEKIT_KEYS=mykey:mysecret)
+
+room:
+  # Destroy room immediately when last participant leaves
+  empty_timeout: 0
+  # No global participant limit (enforced per-channel in application)
+  max_participants: 0
+
+logging:
+  level: info
+  # Use JSON format in production for structured logging
+  json: false
+
+# Webhook configuration (Go API will handle these)
+# webhook:
+#   urls:
+#     - http://redoubt-api:8080/api/v1/livekit/webhook
+#   api_key: <same as LIVEKIT_API_KEY>
