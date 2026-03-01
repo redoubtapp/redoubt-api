@@ -3,6 +3,16 @@ services:
     image: ghcr.io/redoubtapp/redoubt-api:latest
     environment:
       - CONFIG_PATH=/etc/redoubt/config.yaml
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - STORAGE_MASTER_KEY=${STORAGE_MASTER_KEY}
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - ADMIN_SESSION_SECRET=${ADMIN_SESSION_SECRET}
+      - DOMAIN=${DOMAIN}
     volumes:
       - ./config/config.yaml:/etc/redoubt/config.yaml:ro
     depends_on:
