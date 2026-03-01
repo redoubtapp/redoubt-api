@@ -144,7 +144,9 @@ components:
       properties:
         message:
           type: string
-          example: "Registration successful. Please check your email to verify your account."
+          example: >-
+            Registration successful. Please check
+            your email to verify your account.
 
     LoginRequest:
       type: object
@@ -594,7 +596,9 @@ components:
         message_id:
           type: string
           format: uuid
-          description: Mark as read up to this message (optional, marks all if not specified)
+          description: >-
+            Mark as read up to this message
+            (optional, marks all if not specified)
 
     UnreadCountResponse:
       type: object
@@ -837,7 +841,9 @@ paths:
     post:
       tags: [Authentication]
       summary: Register a new user
-      description: Register with an invite code. Email verification required before login.
+      description: >-
+        Register with an invite code. Email
+        verification required before login.
       operationId: register
       requestBody:
         required: true
@@ -957,7 +963,10 @@ paths:
     post:
       tags: [Authentication]
       summary: Request password reset
-      description: Request a password reset email. Always returns success to not reveal if email exists.
+      description: >-
+        Request a password reset email. Always
+        returns success to not reveal if email
+        exists.
       operationId: forgotPassword
       requestBody:
         required: true
@@ -1001,7 +1010,10 @@ paths:
     post:
       tags: [Authentication]
       summary: Resend verification email
-      description: Resend the email verification link. Always returns success to not reveal if email exists.
+      description: >-
+        Resend the email verification link. Always
+        returns success to not reveal if email
+        exists.
       operationId: resendVerification
       requestBody:
         required: true
@@ -1666,7 +1678,10 @@ paths:
     get:
       tags: [Messages]
       summary: List channel messages
-      description: List messages in a channel with cursor-based pagination. Returns newest messages first.
+      description: >-
+        List messages in a channel with
+        cursor-based pagination. Returns newest
+        messages first.
       operationId: listMessages
       security:
         - bearerAuth: []
@@ -1707,7 +1722,10 @@ paths:
     post:
       tags: [Messages]
       summary: Send message
-      description: Send a message to a channel. Supports markdown formatting. Rate limited to 5 messages per 5 seconds.
+      description: >-
+        Send a message to a channel. Supports
+        markdown formatting. Rate limited to
+        5 messages per 5 seconds.
       operationId: sendMessage
       security:
         - bearerAuth: []
@@ -1746,7 +1764,9 @@ paths:
     put:
       tags: [Messages]
       summary: Mark channel as read
-      description: Mark a channel as read up to a specific message or all messages.
+      description: >-
+        Mark a channel as read up to a specific
+        message or all messages.
       operationId: markChannelAsRead
       security:
         - bearerAuth: []
@@ -1838,7 +1858,10 @@ paths:
     patch:
       tags: [Messages]
       summary: Edit message
-      description: Edit a message. Only the author can edit within 15 minutes of creation. Rate limited to 3 edits per minute.
+      description: >-
+        Edit a message. Only the author can edit
+        within 15 minutes of creation. Rate
+        limited to 3 edits per minute.
       operationId: editMessage
       security:
         - bearerAuth: []
@@ -1876,7 +1899,10 @@ paths:
     delete:
       tags: [Messages]
       summary: Delete message
-      description: Soft delete a message. Authors can delete their own messages anytime. Admins can delete any message in their space.
+      description: >-
+        Soft delete a message. Authors can delete
+        their own messages anytime. Admins can
+        delete any message in their space.
       operationId: deleteMessage
       security:
         - bearerAuth: []
@@ -1901,7 +1927,9 @@ paths:
     get:
       tags: [Messages]
       summary: Get edit history
-      description: Get the edit history for a message. Only available to the author or space admins.
+      description: >-
+        Get the edit history for a message. Only
+        available to the author or space admins.
       operationId: getEditHistory
       security:
         - bearerAuth: []
@@ -1958,7 +1986,10 @@ paths:
     post:
       tags: [Messages]
       summary: Reply to thread
-      description: Create a reply to a message thread. If the parent message is not already a thread root, it will become one.
+      description: >-
+        Create a reply to a message thread. If
+        the parent message is not already a
+        thread root, it will become one.
       operationId: replyToThread
       security:
         - bearerAuth: []
@@ -2026,7 +2057,10 @@ paths:
     post:
       tags: [Reactions]
       summary: Add reaction
-      description: Add a reaction to a message. Emoji must be from the curated set. Rate limited to 20 reactions per minute.
+      description: >-
+        Add a reaction to a message. Emoji must
+        be from the curated set. Rate limited to
+        20 reactions per minute.
       operationId: addReaction
       security:
         - bearerAuth: []
@@ -2217,7 +2251,9 @@ paths:
     get:
       tags: [Invites]
       summary: Get invite info
-      description: Get public information about an invite code. No authentication required.
+      description: >-
+        Get public information about an invite
+        code. No authentication required.
       operationId: getInviteInfo
       parameters:
         - name: code

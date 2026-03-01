@@ -86,7 +86,8 @@ services:
       - livekit
     restart: unless-stopped
 
-  # Optional monitoring stack (start with: docker compose --profile monitoring up -d)
+  # Optional monitoring stack
+  # start with: docker compose --profile monitoring up -d
   prometheus:
     image: prom/prometheus:v2.50.1
     profiles: ["monitoring"]
