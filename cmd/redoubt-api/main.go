@@ -135,9 +135,11 @@ func run() error {
 	sessionManager := auth.NewSessionManager(queries, cfg.Auth.RefreshExpiry)
 
 	// Initialize email client
-	// For now, we use the server address as the base URL
-	// In production, this should be the public-facing URL
-	baseURL := "https://localhost" // TODO: Get from config
+	domain := os.Getenv("DOMAIN")
+	baseURL := "https://localhost"
+	if domain != "" {
+		baseURL = "https://" + domain
+	}
 	emailClient := email.NewClient(cfg.Email, baseURL)
 
 	// Initialize auth service

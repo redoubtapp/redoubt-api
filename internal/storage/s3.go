@@ -40,12 +40,17 @@ func NewS3Client(ctx context.Context, cfg appconfig.StorageConfig) (*S3Client, e
 	}
 
 	// Create S3 client with path-style addressing for compatibility
-	// Use BaseEndpoint for custom S3-compatible endpoints (LocalStack, MinIO, etc.)
+	// Use BaseEndpoint for custom S3-compatible endpoints (LocalStack, MinIO, GCS, etc.)
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.UsePathStyle = true
 		if cfg.Endpoint != "" {
 			o.BaseEndpoint = aws.String(cfg.Endpoint)
 		}
+		// Disable automatic checksum calculation for compatibility with
+		// S3-compatible providers (GCS, MinIO, etc.) that don't support
+		// the default CRC32 checksum headers added in AWS SDK v1.73.0+.
+		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
 	})
 
 	return &S3Client{
@@ -55,6 +60,7 @@ func NewS3Client(ctx context.Context, cfg appconfig.StorageConfig) (*S3Client, e
 }
 
 // EnsureBucket creates the bucket if it doesn't exist.
+// In production, the bucket should already exist; this is primarily for dev/first-time setup.
 func (c *S3Client) EnsureBucket(ctx context.Context) error {
 	// Check if bucket exists
 	_, err := c.client.HeadBucket(ctx, &s3.HeadBucketInput{
@@ -64,12 +70,25 @@ func (c *S3Client) EnsureBucket(ctx context.Context) error {
 		return nil // Bucket exists
 	}
 
-	// Create bucket
-	_, err = c.client.CreateBucket(ctx, &s3.CreateBucketInput{
+	// If we get a 403, the bucket likely exists but we lack ListBucket/HeadBucket permissions.
+	// This is common with GCS and restricted IAM policies. Skip creation.
+	var respErr interface{ HTTPStatusCode() int }
+	if errors.As(err, &respErr) && respErr.HTTPStatusCode() == 403 {
+		return nil
+	}
+
+	// Try to create the bucket (useful for dev environments like LocalStack/MinIO)
+	_, createErr := c.client.CreateBucket(ctx, &s3.CreateBucketInput{
 		Bucket: aws.String(c.bucket),
 	})
-	if err != nil {
-		return fmt.Errorf("failed to create bucket: %w", err)
+	if createErr != nil {
+		// If creation fails because it already exists, that's fine
+		var bae *types.BucketAlreadyExists
+		var baob *types.BucketAlreadyOwnedByYou
+		if errors.As(createErr, &bae) || errors.As(createErr, &baob) {
+			return nil
+		}
+		return fmt.Errorf("failed to create bucket: %w", createErr)
 	}
 
 	return nil

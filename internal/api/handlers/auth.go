@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -231,8 +232,27 @@ type VerifyEmailRequest struct {
 	Token string `json:"token" validate:"required"`
 }
 
-// VerifyEmail handles email verification.
+// VerifyEmail handles email verification via POST (JSON body) or GET (query param).
 func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
+	var token string
+
+	if r.Method == http.MethodGet {
+		token = r.URL.Query().Get("token")
+		if token == "" {
+			writeVerifyHTML(w, http.StatusBadRequest, false, "Missing verification token.")
+			return
+		}
+
+		if err := h.authService.VerifyEmail(r.Context(), token); err != nil {
+			writeVerifyHTML(w, http.StatusBadRequest, false, "Verification failed: "+err.Error())
+			return
+		}
+
+		writeVerifyHTML(w, http.StatusOK, true, "Your email has been verified. You can close this page and log in.")
+		return
+	}
+
+	// POST: JSON body (for API/desktop clients)
 	var req VerifyEmailRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		apperrors.BadRequest(w, r, "Invalid request body")
@@ -251,6 +271,29 @@ func (h *AuthHandler) VerifyEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Email verified successfully"})
+}
+
+// writeVerifyHTML writes a simple HTML page for email verification results.
+func writeVerifyHTML(w http.ResponseWriter, status int, success bool, message string) {
+	title := "Verification Failed"
+	color := "#dc3545"
+	if success {
+		title = "Email Verified"
+		color = "#28a745"
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = fmt.Fprintf(w, `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>%s - Redoubt</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background: #f5f5f5;">
+<div style="text-align: center; padding: 40px; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); max-width: 400px;">
+<h1 style="color: %s;">%s</h1>
+<p style="color: #666; font-size: 16px;">%s</p>
+</div>
+</body>
+</html>`, title, color, title, message)
 }
 
 // ForgotPasswordRequest is the request body for password reset request.

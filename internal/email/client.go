@@ -29,7 +29,7 @@ func NewClient(cfg config.EmailConfig, baseURL string) *Client {
 
 // SendVerificationEmail sends an email verification link to the user.
 func (c *Client) SendVerificationEmail(ctx context.Context, to, username, token string) error {
-	verifyURL := fmt.Sprintf("%s/verify-email?token=%s", c.baseURL, token)
+	verifyURL := fmt.Sprintf("%s/api/v1/auth/verify-email?token=%s", c.baseURL, token)
 
 	html := fmt.Sprintf(`
 <!DOCTYPE html>
