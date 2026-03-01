@@ -55,9 +55,7 @@ services:
     ports:
       - "7881:7881"                     # RTC over TCP
       - "7882:7882/udp"                 # TURN/UDP
-      # UDP port range for WebRTC media - uncomment for production
-      # In development, TCP fallback via TURN is sufficient
-      # - "60000-60100:60000-60100/udp"
+      - "60000-60100:60000-60100/udp"    # UDP port range for WebRTC media
     volumes:
       - ./config/livekit.yaml:/etc/livekit.yaml:ro
     environment:

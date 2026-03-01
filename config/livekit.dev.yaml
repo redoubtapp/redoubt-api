@@ -1,0 +1,34 @@
+# LiveKit Server Configuration (Development)
+# https://docs.livekit.io/home/self-hosting/deployment/#config
+
+port: 7880
+
+rtc:
+  # UDP port range for WebRTC media
+  port_range_start: 60000
+  port_range_end: 60100
+  # TCP fallback for restrictive firewalls
+  tcp_port: 7881
+  # For local development: advertise localhost so browser can connect
+  use_external_ip: false
+  node_ip: 127.0.0.1
+
+turn:
+  # TURN requires a domain for TLS. Disable for local development.
+  enabled: false
+
+redis:
+  address: redis:6379
+
+# API keys are loaded from LIVEKIT_KEYS environment variable
+# Format: key:secret (e.g., LIVEKIT_KEYS=mykey:mysecret)
+
+room:
+  # Destroy room immediately when last participant leaves
+  empty_timeout: 0
+  # No global participant limit (enforced per-channel in application)
+  max_participants: 0
+
+logging:
+  level: info
+  json: false
