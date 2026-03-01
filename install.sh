@@ -32,7 +32,9 @@ generate_secret() {
 
 generate_alphanumeric() {
     local length=${1:-32}
-    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
+    local result
+    result=$(openssl rand -base64 "$((length * 2))" | tr -dc 'A-Za-z0-9')
+    printf '%s' "${result:0:$length}"
 }
 
 # --- System checks -----------------------------------------------------------
@@ -119,9 +121,9 @@ check_resources() {
 check_ports() {
     # Ensure ss is available (it should be on any modern Debian/Ubuntu)
     for port in 80 443; do
-        if ss -tlnp | grep -q ":${port} "; then
+        if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
             error "Port $port is already in use:"
-            ss -tlnp | grep ":${port} " || true
+            ss -tlnp 2>/dev/null | grep ":${port} " || true
             error "Free port $port before running this installer."
             exit 1
         fi
@@ -165,7 +167,7 @@ install_dependencies() {
 # --- Domain & DNS ------------------------------------------------------------
 
 prompt_domain() {
-    read -rp "Enter your domain name (e.g., chat.example.com): " DOMAIN
+    read -rp "Enter your domain name (e.g., chat.example.com): " DOMAIN < /dev/tty
     if [[ -z "$DOMAIN" ]]; then
         error "Domain name cannot be empty."
         exit 1
@@ -180,7 +182,7 @@ verify_dns() {
     server_ip=$(curl -s --max-time 5 ifconfig.me)
 
     local domain_ip
-    domain_ip=$(dig +short "$domain" A | head -1)
+    domain_ip=$(dig +short "$domain" A | head -1 || true)
 
     if [[ -z "$domain_ip" ]]; then
         error "Could not resolve '$domain'. Make sure the DNS A record is configured."
@@ -201,7 +203,7 @@ verify_dns() {
 # --- Email -------------------------------------------------------------------
 
 prompt_email() {
-    read -rp "Enter email for TLS certificates (Let's Encrypt): " ACME_EMAIL
+    read -rp "Enter email for TLS certificates (Let's Encrypt): " ACME_EMAIL < /dev/tty
     if [[ -z "$ACME_EMAIL" ]]; then
         error "Email cannot be empty. Let's Encrypt requires an email for certificate notifications."
         exit 1
@@ -215,7 +217,7 @@ prompt_resend() {
     info "Resend is used for transactional emails (password resets, email verification)."
     info "Get an API key at https://resend.com (free tier: 3,000 emails/month)"
     echo
-    read -rp "Resend API key (leave blank to skip, can configure later): " RESEND_API_KEY
+    read -rp "Resend API key (leave blank to skip, can configure later): " RESEND_API_KEY < /dev/tty
     if [[ -n "$RESEND_API_KEY" ]]; then
         success "Resend API key set"
     else
@@ -231,21 +233,21 @@ prompt_s3() {
     info "S3-compatible storage is used for file uploads (avatars, attachments)."
     info "Any S3-compatible provider works (AWS S3, Backblaze B2, MinIO, etc.)"
     echo
-    read -rp "S3 access key (leave blank to skip, can configure later): " S3_ACCESS_KEY
+    read -rp "S3 access key (leave blank to skip, can configure later): " S3_ACCESS_KEY < /dev/tty
     if [[ -n "$S3_ACCESS_KEY" ]]; then
-        read -rp "S3 secret key: " S3_SECRET_KEY
+        read -rp "S3 secret key: " S3_SECRET_KEY < /dev/tty
         if [[ -z "$S3_SECRET_KEY" ]]; then
             error "S3 secret key cannot be empty if access key is provided."
             exit 1
         fi
-        read -rp "S3 bucket name: " S3_BUCKET
+        read -rp "S3 bucket name: " S3_BUCKET < /dev/tty
         if [[ -z "$S3_BUCKET" ]]; then
             error "S3 bucket name cannot be empty."
             exit 1
         fi
-        read -rp "S3 region (e.g., us-east-1): " S3_REGION
+        read -rp "S3 region (e.g., us-east-1): " S3_REGION < /dev/tty
         S3_REGION=${S3_REGION:-us-east-1}
-        read -rp "S3 endpoint URL (leave blank for AWS S3): " S3_ENDPOINT
+        read -rp "S3 endpoint URL (leave blank for AWS S3): " S3_ENDPOINT < /dev/tty
         success "S3 storage configured"
     else
         warn "Skipped. File uploads (avatars, attachments) will not work until configured."
@@ -264,7 +266,7 @@ generate_all_secrets() {
     JWT_SECRET=$(generate_secret 64)
     STORAGE_MASTER_KEY=$(generate_secret 32)
     LIVEKIT_API_KEY="API$(generate_alphanumeric 12)"
-    LIVEKIT_API_SECRET=$(generate_secret 32)
+    LIVEKIT_API_SECRET=$(generate_alphanumeric 32)
     ADMIN_SESSION_SECRET=$(generate_secret 32)
     success "All secrets generated"
 }
@@ -398,7 +400,7 @@ extract_bootstrap_code() {
 
 upgrade_flow() {
     echo
-    read -rp "An existing Redoubt installation was found. Do you want to upgrade? (y/n): " answer
+    read -rp "An existing Redoubt installation was found. Do you want to upgrade? (y/n): " answer < /dev/tty
     if [[ "$answer" != "y" && "$answer" != "Y" ]]; then
         info "Upgrade cancelled."
         exit 0
