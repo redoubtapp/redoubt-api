@@ -1,0 +1,48 @@
+{{define "content"}}
+<h3>Audit Log <small style="color:var(--pico-muted-color);font-weight:normal;font-size:0.9rem">({{.Content.TotalLogs}} total)</small></h3>
+<figure>
+<table>
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Target Type</th>
+            <th>Target ID</th>
+            <th>IP Address</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Content.Entries}}
+        <tr>
+            <td>{{formatTime .CreatedAt}}</td>
+            <td>{{.ActorUsername}}</td>
+            <td><code>{{.Action}}</code></td>
+            <td>{{.TargetType}}</td>
+            <td><code style="font-size:0.75rem">{{uuidStr .TargetID}}</code></td>
+            <td>{{if .IpAddress}}{{.IpAddress}}{{else}}N/A{{end}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="6">No audit log entries found.</td></tr>
+        {{end}}
+    </tbody>
+</table>
+</figure>
+{{if gt .Content.TotalPages 1}}
+<div class="pagination">
+    {{if gt .Content.Page 1}}
+    <a href="/audit?page={{sub .Content.Page 1}}">&laquo; Prev</a>
+    {{end}}
+    {{range seq 1 .Content.TotalPages}}
+    {{if eq . $.Content.Page}}
+    <span class="current">{{.}}</span>
+    {{else}}
+    <a href="/audit?page={{.}}">{{.}}</a>
+    {{end}}
+    {{end}}
+    {{if lt .Content.Page .Content.TotalPages}}
+    <a href="/audit?page={{add .Content.Page 1}}">Next &raquo;</a>
+    {{end}}
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,123 @@
+services:
+  redoubt-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    environment:
+      - CONFIG_PATH=/etc/redoubt/config.yaml
+    volumes:
+      - ./config/config.yaml:/etc/redoubt/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_healthy
+    # Note: Health checks should be performed by the orchestrator (K8s, etc.)
+    # or via Caddy's health checks. Distroless images don't include shell tools.
+    restart: unless-stopped
+    labels:
+      - "prometheus.scrape=true"
+      - "prometheus.port=9090"
+      - "prometheus.path=/metrics"
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: redoubt
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: redoubt
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U redoubt"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  livekit:
+    image: livekit/livekit-server:v1.9
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7881:7881"                     # RTC over TCP
+      - "7882:7882/udp"                 # TURN/UDP
+      # UDP port range for WebRTC media - uncomment for production
+      # In development, TCP fallback via TURN is sufficient
+      # - "60000-60100:60000-60100/udp"
+    volumes:
+      - ./config/livekit.yaml:/etc/livekit.yaml:ro
+    environment:
+      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7880"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - redoubt-api
+      - livekit
+    restart: unless-stopped
+
+  # Optional monitoring stack
+  # start with: docker compose --profile monitoring up -d
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    profiles: ["monitoring"]
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.3.1
+    profiles: ["monitoring"]
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  prometheus_data:
+  grafana_data:

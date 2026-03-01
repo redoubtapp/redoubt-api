@@ -1,0 +1,131 @@
+{{define "content"}}
+{{with .Content}}
+<h3>Space: {{.Space.Name}}</h3>
+
+<article>
+    <header><strong>Space Details</strong></header>
+    <dl class="detail-grid">
+        <dt>ID</dt>
+        <dd><code>{{uuidStr .Space.ID}}</code></dd>
+        <dt>Name</dt>
+        <dd>{{.Space.Name}}</dd>
+        <dt>Owner</dt>
+        <dd><a href="/users/{{uuidStr .Space.OwnerID}}">{{.Space.OwnerUsername}}</a></dd>
+        <dt>Created</dt>
+        <dd>{{formatTime .Space.CreatedAt}}</dd>
+    </dl>
+
+    <div class="actions">
+        <form method="POST" action="/spaces/{{uuidStr .Space.ID}}/delete" onsubmit="return confirm('Delete this space? This action is irreversible.')">
+            {{csrfField $.CSRFToken}}
+            <button type="submit" class="outline secondary">Delete Space</button>
+        </form>
+    </div>
+</article>
+
+<article>
+    <header><strong>Members ({{len .Members}})</strong></header>
+    {{if .Members}}
+    <figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Joined</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Members}}
+            <tr>
+                <td><a href="/users/{{uuidStr .ID}}">{{.Username}}</a></td>
+                <td>{{.Email}}</td>
+                <td><span class="badge badge-gray">{{.Role}}</span></td>
+                <td>{{formatTimeShort .JoinedAt}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    </figure>
+    {{else}}
+    <p>No members found.</p>
+    {{end}}
+</article>
+
+<article>
+    <header><strong>Channels ({{len .Channels}})</strong></header>
+    {{if .Channels}}
+    <figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Position</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Channels}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td><span class="badge badge-gray">{{.Type}}</span></td>
+                <td>{{.Position}}</td>
+                <td>{{formatTimeShort .CreatedAt}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    </figure>
+    {{else}}
+    <p>No channels found.</p>
+    {{end}}
+</article>
+
+<article>
+    <header><strong>Invites ({{len .Invites}})</strong></header>
+    {{if .Invites}}
+    <figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Uses</th>
+                <th>Created By</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Invites}}
+            <tr>
+                <td><code>{{.Code}}</code></td>
+                <td>{{.Uses}}{{if .MaxUses.Valid}} / {{.MaxUses.Int32}}{{end}}</td>
+                <td>{{.CreatedByUsername}}</td>
+                <td>{{if isValid .ExpiresAt}}{{formatTimeShort .ExpiresAt}}{{else}}Never{{end}}</td>
+                <td>
+                    {{if isValid .RevokedAt}}<span class="badge badge-red">Revoked</span>
+                    {{else}}<span class="badge badge-green">Active</span>
+                    {{end}}
+                </td>
+                <td>
+                    {{if not (isValid .RevokedAt)}}
+                    <form method="POST" action="/spaces/{{uuidStr $.Content.Space.ID}}/invites/{{uuidStr .ID}}/revoke" style="margin:0" onsubmit="return confirm('Revoke this invite?')">
+                        {{csrfField $.CSRFToken}}
+                        <button type="submit" class="outline secondary" style="padding:0.2rem 0.5rem;font-size:0.75rem;margin:0">Revoke</button>
+                    </form>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+    </figure>
+    {{else}}
+    <p>No invites found.</p>
+    {{end}}
+</article>
+{{end}}
+{{end}}

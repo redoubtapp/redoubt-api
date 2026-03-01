@@ -1,0 +1,24 @@
+# Development Dockerfile with Air hot reload
+FROM golang:1.25-alpine
+
+WORKDIR /app
+
+# Install development tools
+RUN apk add --no-cache git ca-certificates curl
+
+# Install Air for hot reload (pinned to version compatible with Go 1.24)
+RUN go install github.com/air-verse/air@v1.61.7
+
+# Install golang-migrate for migrations
+RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy Air config
+COPY .air.toml /app/.air.toml
+
+EXPOSE 8080 9090 9091
+
+CMD ["air", "-c", ".air.toml"]

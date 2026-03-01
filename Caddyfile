@@ -1,0 +1,37 @@
+{$DOMAIN:localhost} {
+    # API routes
+    handle /api/v1/* {
+        reverse_proxy redoubt-api:8080
+    }
+
+    # Health check endpoints
+    handle /health {
+        reverse_proxy redoubt-api:8080
+    }
+
+    handle /health/* {
+        reverse_proxy redoubt-api:8080
+    }
+
+    # WebSocket for presence/chat
+    handle /ws {
+        reverse_proxy redoubt-api:8080
+    }
+
+    # LiveKit webhook endpoint (handled by Go API)
+    handle /api/v1/livekit/webhook {
+        reverse_proxy redoubt-api:8080
+    }
+
+    # LiveKit signaling (HTTP/WebSocket)
+    # Clients connect here for WebRTC negotiation
+    handle /livekit/* {
+        uri strip_prefix /livekit
+        reverse_proxy livekit:7880
+    }
+
+    # Default response
+    handle {
+        respond "Redoubt API" 200
+    }
+}

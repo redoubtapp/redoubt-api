@@ -1,0 +1,36 @@
+{{define "content"}}
+<h3>Dashboard</h3>
+<div id="stats-container"
+     hx-get="/partials/stats"
+     hx-trigger="every 30s"
+     hx-swap="innerHTML">
+    {{with .Content}}
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{.UserCount}}</div>
+            <div class="stat-label">Total Users</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{.SpaceCount}}</div>
+            <div class="stat-label">Total Spaces</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{.ChannelCount}}</div>
+            <div class="stat-label">Total Channels</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{.MessagesToday}}</div>
+            <div class="stat-label">Messages (24h)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{.OnlineCount}}</div>
+            <div class="stat-label">Online Now</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{.Uptime}}</div>
+            <div class="stat-label">Uptime</div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}
