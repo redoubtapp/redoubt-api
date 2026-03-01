@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	v4signer "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -22,6 +25,25 @@ var ErrObjectNotFound = errors.New("object not found")
 type S3Client struct {
 	client *s3.Client
 	bucket string
+}
+
+// gcsCompatibleSigner wraps the default v4 signer to exclude the Accept-Encoding
+// header from signature calculation. GCS's load balancer rewrites this header,
+// causing SignatureDoesNotMatch errors with the standard AWS signer.
+type gcsCompatibleSigner struct {
+	signer s3.HTTPSignerV4
+}
+
+func (s *gcsCompatibleSigner) SignHTTP(ctx context.Context, creds aws.Credentials, r *http.Request, payloadHash string, service string, region string, signingTime time.Time, optFns ...func(*v4signer.SignerOptions)) error {
+	acceptEncoding := r.Header.Get("Accept-Encoding")
+	r.Header.Del("Accept-Encoding")
+
+	err := s.signer.SignHTTP(ctx, creds, r, payloadHash, service, region, signingTime, optFns...)
+
+	if acceptEncoding != "" {
+		r.Header.Set("Accept-Encoding", acceptEncoding)
+	}
+	return err
 }
 
 // NewS3Client creates a new S3 client configured for the given storage settings.
@@ -51,6 +73,12 @@ func NewS3Client(ctx context.Context, cfg appconfig.StorageConfig) (*S3Client, e
 		// the default CRC32 checksum headers added in AWS SDK v1.73.0+.
 		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+
+		// Wrap the signer to exclude Accept-Encoding from signature calculation.
+		// GCS's load balancer rewrites this header, causing SignatureDoesNotMatch.
+		// See: https://github.com/aws/aws-sdk-go-v2/issues/1816
+		defSigner := v4signer.NewSigner()
+		o.HTTPSignerV4 = &gcsCompatibleSigner{signer: defSigner}
 	})
 
 	return &S3Client{
