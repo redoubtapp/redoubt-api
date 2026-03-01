@@ -61,7 +61,7 @@ services:
     volumes:
       - ./config/livekit.yaml:/etc/livekit.yaml:ro
     environment:
-      - LIVEKIT_KEYS=${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}
+      - "LIVEKIT_KEYS=${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
     depends_on:
       redis:
         condition: service_healthy
