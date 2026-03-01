@@ -72,6 +72,8 @@ services:
   livekit:
     environment:
       - "LIVEKIT_KEYS=devkey: secret_dev_key_change_in_production"
+    volumes:
+      - ./config/livekit.dev.yaml:/etc/livekit.yaml:ro
     ports:
       - "7880:7880" # HTTP/WebSocket signaling (exposed for dev)
 

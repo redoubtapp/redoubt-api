@@ -1,5 +1,6 @@
-# LiveKit Server Configuration
+# LiveKit Server Configuration (Production)
 # https://docs.livekit.io/home/self-hosting/deployment/#config
+# For development settings, see livekit.dev.yaml
 
 port: 7880
 
@@ -9,18 +10,19 @@ rtc:
   port_range_end: 60100
   # TCP fallback for restrictive firewalls
   tcp_port: 7881
-  # Use external IP for NAT traversal (disable for local dev)
-  use_external_ip: false
-  # For local development: advertise localhost so browser can connect
-  node_ip: 127.0.0.1
+  # Auto-detect public IP via STUN for NAT traversal
+  use_external_ip: true
+  # If use_external_ip doesn't work (e.g. behind certain load balancers),
+  # set node_ip to the server's public IP explicitly:
+  # node_ip: <your-server-public-ip>
 
 turn:
-  # TURN requires a domain for TLS. Disable for local development.
-  # For production, enable TURN with proper domain configuration.
-  enabled: false
-  # udp_port: 7882
-  # tls_port: 7882
-  # domain: your-domain.com
+  # Enable TURN relay for clients behind restrictive firewalls/NATs.
+  # This provides UDP relay without TLS. For TLS TURN (port 5349),
+  # LiveKit needs its own TLS certs and a dedicated domain — see:
+  # https://docs.livekit.io/home/self-hosting/deployment/#turn
+  enabled: true
+  udp_port: 7882
 
 redis:
   address: redis:6379
@@ -36,11 +38,4 @@ room:
 
 logging:
   level: info
-  # Use JSON format in production for structured logging
-  json: false
-
-# Webhook configuration (Go API will handle these)
-# webhook:
-#   urls:
-#     - http://redoubt-api:8080/api/v1/livekit/webhook
-#   api_key: <same as LIVEKIT_API_KEY>
+  json: true
