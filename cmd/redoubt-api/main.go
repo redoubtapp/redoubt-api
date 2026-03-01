@@ -134,11 +134,12 @@ func run() error {
 	jwtManager := auth.NewJWTManager(cfg.Auth.JWTSecret, cfg.Auth.JWTExpiry)
 	sessionManager := auth.NewSessionManager(queries, cfg.Auth.RefreshExpiry)
 
-	// Initialize email client
+	// Derive domain-based URLs from DOMAIN env var
 	domain := os.Getenv("DOMAIN")
 	baseURL := "https://localhost"
 	if domain != "" {
 		baseURL = "https://" + domain
+		cfg.LiveKit.WebSocketURL = "wss://" + domain + "/livekit"
 	}
 	emailClient := email.NewClient(cfg.Email, baseURL)
 
