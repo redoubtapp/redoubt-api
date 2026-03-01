@@ -1,3 +1,7 @@
+{
+    email {$ACME_EMAIL:}
+}
+
 {$DOMAIN:localhost} {
     # API routes
     handle /api/v1/* {
