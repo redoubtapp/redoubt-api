@@ -81,7 +81,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 			Limiter:    cfg.RateLimiter,
 			Scope:      ratelimit.ScopeVerifyEmail,
 			Identifier: middleware.IPIdentifier,
-		})(http.HandlerFunc(cfg.AuthHandler.VerifyEmail))).Methods(http.MethodPost)
+		})(http.HandlerFunc(cfg.AuthHandler.VerifyEmail))).Methods(http.MethodGet, http.MethodPost)
 
 		// Other auth routes without specific rate limits
 		apiV1.HandleFunc("/auth/refresh", cfg.AuthHandler.Refresh).Methods(http.MethodPost)
@@ -94,7 +94,7 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		apiV1.HandleFunc("/auth/login", cfg.AuthHandler.Login).Methods(http.MethodPost)
 		apiV1.HandleFunc("/auth/refresh", cfg.AuthHandler.Refresh).Methods(http.MethodPost)
 		apiV1.HandleFunc("/auth/logout", cfg.AuthHandler.Logout).Methods(http.MethodPost)
-		apiV1.HandleFunc("/auth/verify-email", cfg.AuthHandler.VerifyEmail).Methods(http.MethodPost)
+		apiV1.HandleFunc("/auth/verify-email", cfg.AuthHandler.VerifyEmail).Methods(http.MethodGet, http.MethodPost)
 		apiV1.HandleFunc("/auth/forgot-password", cfg.AuthHandler.ForgotPassword).Methods(http.MethodPost)
 		apiV1.HandleFunc("/auth/reset-password", cfg.AuthHandler.ResetPassword).Methods(http.MethodPost)
 		apiV1.HandleFunc("/auth/resend-verification", cfg.AuthHandler.ResendVerification).Methods(http.MethodPost)
