@@ -77,7 +77,7 @@ func (h *AttachmentHandler) UploadAttachment(w http.ResponseWriter, r *http.Requ
 		apperrors.BadRequest(w, r, "No file provided")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Read file data
 	data, err := io.ReadAll(io.LimitReader(file, storage.MaxAttachmentSize+1))
@@ -150,7 +150,7 @@ func (h *AttachmentHandler) GetAttachment(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Cache-Control", "private, max-age=3600")
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // DownloadAttachment retrieves an attachment as a download.
@@ -180,7 +180,7 @@ func (h *AttachmentHandler) DownloadAttachment(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Content-Length", strconv.Itoa(len(data)))
 
 	w.WriteHeader(http.StatusOK)
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // DeleteAttachment deletes an attachment.

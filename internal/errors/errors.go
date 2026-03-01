@@ -96,15 +96,15 @@ var (
 
 // Message errors
 var (
-	ErrMessageNotFound    = errors.New("message not found")
-	ErrMessageDeleted     = errors.New("message deleted")
-	ErrMessageTooLong     = errors.New("message too long")
-	ErrMessageEmpty       = errors.New("message empty")
-	ErrCodeBlockTooLong   = errors.New("code block too long")
-	ErrEditWindowExpired  = errors.New("edit window expired")
-	ErrCannotEditOthers   = errors.New("cannot edit others messages")
-	ErrCannotDeleteOthers = errors.New("cannot delete others messages")
-	ErrInvalidEmoji       = errors.New("invalid emoji")
+	ErrMessageNotFound     = errors.New("message not found")
+	ErrMessageDeleted      = errors.New("message deleted")
+	ErrMessageTooLong      = errors.New("message too long")
+	ErrMessageEmpty        = errors.New("message empty")
+	ErrCodeBlockTooLong    = errors.New("code block too long")
+	ErrEditWindowExpired   = errors.New("edit window expired")
+	ErrCannotEditOthers    = errors.New("cannot edit others messages")
+	ErrCannotDeleteOthers  = errors.New("cannot delete others messages")
+	ErrInvalidEmoji        = errors.New("invalid emoji")
 	ErrThreadDepthExceeded = errors.New("thread depth exceeded")
 )
 

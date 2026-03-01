@@ -34,9 +34,6 @@ func TestNewJWTManager(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			manager := NewJWTManager(tt.secret, tt.expiry)
-			if manager == nil {
-				t.Fatal("NewJWTManager() returned nil")
-			}
 			if string(manager.secret) != tt.secret {
 				t.Errorf("secret = %v, want %v", string(manager.secret), tt.secret)
 			}

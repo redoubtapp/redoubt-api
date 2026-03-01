@@ -17,13 +17,13 @@ import (
 
 // Metadata represents OpenGraph metadata for a URL.
 type Metadata struct {
-	URL         string  `json:"url"`
-	Title       string  `json:"title,omitempty"`
-	Description string  `json:"description,omitempty"`
-	Image       string  `json:"image,omitempty"`
-	SiteName    string  `json:"site_name,omitempty"`
-	Type        string  `json:"type,omitempty"`
-	Favicon     string  `json:"favicon,omitempty"`
+	URL         string `json:"url"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	Image       string `json:"image,omitempty"`
+	SiteName    string `json:"site_name,omitempty"`
+	Type        string `json:"type,omitempty"`
+	Favicon     string `json:"favicon,omitempty"`
 }
 
 // cacheEntry holds cached metadata with expiration.
@@ -65,15 +65,15 @@ func isPrivateIP(ip net.IP) bool {
 		{parseCIDR("172.16.0.0/12")},
 		{parseCIDR("192.168.0.0/16")},
 		{parseCIDR("127.0.0.0/8")},
-		{parseCIDR("169.254.0.0/16")},   // link-local / cloud metadata
-		{parseCIDR("::1/128")},           // IPv6 loopback
-		{parseCIDR("fc00::/7")},          // IPv6 unique local
-		{parseCIDR("fe80::/10")},         // IPv6 link-local
-		{parseCIDR("0.0.0.0/8")},        // "this" network
-		{parseCIDR("100.64.0.0/10")},     // shared address space (CGN)
-		{parseCIDR("192.0.0.0/24")},      // IETF protocol assignments
-		{parseCIDR("198.18.0.0/15")},     // benchmarking
-		{parseCIDR("240.0.0.0/4")},       // reserved
+		{parseCIDR("169.254.0.0/16")}, // link-local / cloud metadata
+		{parseCIDR("::1/128")},        // IPv6 loopback
+		{parseCIDR("fc00::/7")},       // IPv6 unique local
+		{parseCIDR("fe80::/10")},      // IPv6 link-local
+		{parseCIDR("0.0.0.0/8")},      // "this" network
+		{parseCIDR("100.64.0.0/10")},  // shared address space (CGN)
+		{parseCIDR("192.0.0.0/24")},   // IETF protocol assignments
+		{parseCIDR("198.18.0.0/15")},  // benchmarking
+		{parseCIDR("240.0.0.0/4")},    // reserved
 	}
 
 	for _, r := range privateRanges {
@@ -203,7 +203,7 @@ func (s *Service) fetchFromURL(ctx context.Context, rawURL string, parsedURL *ur
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &Metadata{URL: rawURL}, nil
@@ -319,11 +319,12 @@ func (s *Service) parseLink(n *html.Node, metadata *Metadata, baseURL *url.URL) 
 
 	// Look for favicon
 	if strings.Contains(rel, "icon") && href != "" && metadata.Favicon == "" {
-		if strings.HasPrefix(href, "//") {
+		switch {
+		case strings.HasPrefix(href, "//"):
 			metadata.Favicon = baseURL.Scheme + ":" + href
-		} else if strings.HasPrefix(href, "/") {
+		case strings.HasPrefix(href, "/"):
 			metadata.Favicon = baseURL.Scheme + "://" + baseURL.Host + href
-		} else if strings.HasPrefix(href, "http") {
+		case strings.HasPrefix(href, "http"):
 			metadata.Favicon = href
 		}
 	}

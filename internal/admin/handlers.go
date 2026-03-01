@@ -3,6 +3,7 @@ package admin
 import (
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"strconv"
@@ -131,12 +132,12 @@ func (s *Server) logoutSubmit(w http.ResponseWriter, r *http.Request) {
 // --- Dashboard ---
 
 type dashboardData struct {
-	UserCount      int64
-	SpaceCount     int64
-	ChannelCount   int64
-	MessagesToday  int64
-	OnlineCount    int
-	Uptime         string
+	UserCount     int64
+	SpaceCount    int64
+	ChannelCount  int64
+	MessagesToday int64
+	OnlineCount   int
+	Uptime        string
 }
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
@@ -195,10 +196,10 @@ func (s *Server) statsPartial(w http.ResponseWriter, r *http.Request) {
 // --- Users ---
 
 type userListData struct {
-	Users       []generated.AdminListUsersRow
-	Page        int
-	TotalPages  int
-	TotalUsers  int64
+	Users      []generated.AdminListUsersRow
+	Page       int
+	TotalPages int
+	TotalUsers int64
 }
 
 func (s *Server) userList(w http.ResponseWriter, r *http.Request) {
@@ -216,7 +217,7 @@ func (s *Server) userList(w http.ResponseWriter, r *http.Request) {
 
 	users, err := s.queries.AdminListUsers(ctx, generated.AdminListUsersParams{
 		Limit:  perPage,
-		Offset: int32((page - 1) * perPage),
+		Offset: safeOffset(page, perPage),
 	})
 	if err != nil {
 		s.logger.Error("failed to list users", slog.String("error", err.Error()))
@@ -371,7 +372,7 @@ func (s *Server) spaceList(w http.ResponseWriter, r *http.Request) {
 
 	spaces, err := s.queries.AdminListSpaces(ctx, generated.AdminListSpacesParams{
 		Limit:  perPage,
-		Offset: int32((page - 1) * perPage),
+		Offset: safeOffset(page, perPage),
 	})
 	if err != nil {
 		s.logger.Error("failed to list spaces", slog.String("error", err.Error()))
@@ -505,7 +506,7 @@ func (s *Server) auditList(w http.ResponseWriter, r *http.Request) {
 
 	entries, err := s.queries.AdminListAuditLogs(ctx, generated.AdminListAuditLogsParams{
 		Limit:  perPage,
-		Offset: int32((page - 1) * perPage),
+		Offset: safeOffset(page, perPage),
 	})
 	if err != nil {
 		s.logger.Error("failed to list audit logs", slog.String("error", err.Error()))
@@ -533,7 +534,18 @@ func parsePage(r *http.Request) int {
 	if err != nil || page < 1 {
 		return 1
 	}
+	if page > 1_000_000 {
+		return 1_000_000
+	}
 	return page
+}
+
+func safeOffset(page, perPage int) int32 {
+	offset := (page - 1) * perPage
+	if offset > math.MaxInt32 {
+		return 0
+	}
+	return int32(offset) //nolint:gosec // bounded by the check above
 }
 
 func getClientIP(r *http.Request) string {

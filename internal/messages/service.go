@@ -436,20 +436,7 @@ func (s *Service) ListChannelMessages(ctx context.Context, channelID uuid.UUID, 
 		}
 		// Convert cursor rows to regular rows
 		for _, r := range cursorRows {
-			rows = append(rows, generated.ListChannelMessagesRow{
-				ID:              r.ID,
-				ChannelID:       r.ChannelID,
-				AuthorID:        r.AuthorID,
-				Content:         r.Content,
-				ThreadID:        r.ThreadID,
-				IsThreadRoot:    r.IsThreadRoot,
-				ReplyCount:      r.ReplyCount,
-				EditedAt:        r.EditedAt,
-				DeletedAt:       r.DeletedAt,
-				CreatedAt:       r.CreatedAt,
-				AuthorUsername:  r.AuthorUsername,
-				AuthorAvatarUrl: r.AuthorAvatarUrl,
-			})
+			rows = append(rows, generated.ListChannelMessagesRow(r))
 		}
 		err = cursorErr
 	}

@@ -159,9 +159,6 @@ func TestNewHealthHandler(t *testing.T) {
 	}
 
 	handler := NewHealthHandler(deps)
-	if handler == nil {
-		t.Fatal("NewHealthHandler returned nil")
-	}
 
 	if handler.deps != deps {
 		t.Error("handler.deps does not match input")

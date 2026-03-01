@@ -4,6 +4,7 @@ FROM golang:1.25-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
+# hadolint ignore=DL3018
 RUN apk add --no-cache git ca-certificates
 
 # Copy go mod files

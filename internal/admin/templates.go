@@ -79,7 +79,7 @@ func loadTemplates() (*templateRegistry, error) {
 			return uuid.UUID(id.Bytes).String()
 		},
 		"csrfField": func(token string) template.HTML {
-			return template.HTML(fmt.Sprintf(`<input type="hidden" name="csrf_token" value="%s">`, template.HTMLEscapeString(token)))
+			return template.HTML(fmt.Sprintf(`<input type="hidden" name="csrf_token" value="%s">`, template.HTMLEscapeString(token))) //nolint:gosec // input is escaped via HTMLEscapeString
 		},
 		"add": func(a, b int) int {
 			return a + b
@@ -142,7 +142,7 @@ func loadTemplates() (*templateRegistry, error) {
 	// Partials (rendered without layout)
 	partials := []string{"stats"}
 	for _, partial := range partials {
-		t, err := template.New(partial + ".html").Funcs(funcMap).ParseFS(templateFiles,
+		t, err := template.New(partial+".html").Funcs(funcMap).ParseFS(templateFiles,
 			fmt.Sprintf("templates/partials/%s.html", partial),
 		)
 		if err != nil {

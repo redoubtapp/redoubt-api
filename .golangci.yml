@@ -13,6 +13,7 @@ linters:
     - revive
     - gosec
     - prealloc
+    - bodyclose
   settings:
     revive:
       rules:

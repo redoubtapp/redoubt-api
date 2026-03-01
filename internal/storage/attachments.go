@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"path/filepath"
 	"strings"
 
@@ -182,7 +183,7 @@ func (s *Service) UploadAttachment(ctx context.Context, req UploadAttachmentRequ
 		MessageID:    pgtype.UUID{Bytes: req.MessageID, Valid: true},
 		MediaFileID:  mediaFile.ID,
 		Filename:     sanitizeFilename(req.Filename),
-		DisplayOrder: int32(req.Order),
+		DisplayOrder: int32(min(req.Order, math.MaxInt32)), //nolint:gosec // bounded by min
 	})
 	if err != nil {
 		// Clean up media file and S3
